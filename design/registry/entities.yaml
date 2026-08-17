@@ -1,0 +1,599 @@
+# Entity Registry — GAMZAA
+#
+# Cross-system source of truth for named entities, items, formulas, and constants
+# referenced across multiple GDDs. When a value here conflicts with a value newly
+# written in a GDD, surface the conflict before writing — never silently diverge.
+#
+# Maintained by /design-system. See design/gdd/systems-index.md for the system map.
+
+constants:
+  - name: IDEAL
+    category: constant
+    value: 50
+    unit: points (0-100 scale)
+    description: 감자 스탯(수분/습도/온도)의 공유 중심값. Recovery 시 리셋 목표값.
+    source: design/gdd/potato-stat-system.md
+    referenced_by:
+      - design/gdd/potato-stat-system.md
+
+  - name: SAFE_BAND_MOISTURE
+    category: constant
+    value: [25, 75]
+    unit: points (0-100 scale)
+    description: 수분 스탯 안전 구간 (반폭 25, 3개 스탯 중 가장 넓음 — 가장 습관적인 제스처라 관대하게 설계)
+    source: design/gdd/potato-stat-system.md
+    referenced_by:
+      - design/gdd/potato-stat-system.md
+
+  - name: SAFE_BAND_TEMPERATURE
+    category: constant
+    value: [30, 70]
+    unit: points (0-100 scale)
+    description: 온도 스탯 안전 구간 (반폭 20, 중간 — 난로 롱프레스는 프로토타입 검증을 받은 제스처)
+    source: design/gdd/potato-stat-system.md
+    referenced_by:
+      - design/gdd/potato-stat-system.md
+
+  - name: SAFE_BAND_HUMIDITY
+    category: constant
+    value: [35, 65]
+    unit: points (0-100 scale)
+    description: 습도 스탯 안전 구간 (반폭 15, 가장 좁음 — 아트 바이블상 가장 무거운 무드 + 프로토타입에서 가장 미검증이었던 제스처)
+    source: design/gdd/potato-stat-system.md
+    referenced_by:
+      - design/gdd/potato-stat-system.md
+
+  - name: ACTIVE_RATE
+    category: constant
+    value: 2.5
+    unit: points per hour
+    description: 활성 날씨가 겨냥하는 스탯의 감쇠율(방향은 날씨 종류에 따름). 폭염(post-MVP)은 더 빠른 별도 값(ACTIVE_RATE_HEATWAVE=-4.0) — 날씨 시스템 GDD Formulas §4에서 확정됨.
+    source: design/gdd/potato-stat-system.md
+    referenced_by:
+      - design/gdd/potato-stat-system.md
+      - design/gdd/weather-system.md
+      - design/gdd/expression-animation-system.md
+      - design/gdd/offline-progress-calculation.md
+      - design/gdd/ad-sdk-integration-layer.md
+
+  - name: BASELINE_RATE
+    category: constant
+    value: 0.5
+    unit: points per hour
+    description: 스탯 고유 날씨가 비활성일 때도 항상 흐르는 기본 엔트로피율 (ACTIVE_RATE의 1/5). 방향은 항상 그 스탯의 활성 날씨 위기와 동일.
+    source: design/gdd/potato-stat-system.md
+    referenced_by:
+      - design/gdd/potato-stat-system.md
+
+  - name: TOUCH_DELTA
+    category: constant
+    value: 30
+    unit: points
+    description: 터치 제스처(창문 드래그/난로 롱프레스/물뿌리개) 완료 1회당 스탯 조정량. 완료 시점에 원자적으로 1회 적용.
+    source: design/gdd/potato-stat-system.md
+    referenced_by:
+      - design/gdd/potato-stat-system.md
+      - design/gdd/expression-animation-system.md
+      - design/gdd/touch-care-interaction.md
+      - design/gdd/save-persistence-system.md
+
+  - name: NEGLECT_K
+    category: constant
+    value: 0.5
+    unit: neglect points per hour per overshoot point per stat
+    description: 방치 지표 누적 계수. 변경 시 Time-to-Wither 정합성 검증 재실행 필수.
+    source: design/gdd/potato-stat-system.md
+    referenced_by:
+      - design/gdd/potato-stat-system.md
+
+  - name: NEGLECT_DECAY
+    category: constant
+    value: 25
+    unit: neglect points per hour
+    description: 3개 스탯 모두 안전 구간 복귀 시 방치 지표 감소율.
+    source: design/gdd/potato-stat-system.md
+    referenced_by:
+      - design/gdd/potato-stat-system.md
+
+  - name: HEATWAVE_LABEL_RATIO
+    category: constant
+    value: 0.5
+    unit: ratio (0-1)
+    description: 수분 저이탈 블렌드(b)가 이 값 이상일 때 "Heatwave-drooping" QA 라벨 적용. 렌더링 분기점 아님, 연속 곡선 위 표기용.
+    source: design/gdd/potato-stat-system.md
+    referenced_by:
+      - design/gdd/potato-stat-system.md
+
+  - name: SHIELD_DURATION
+    category: constant
+    value: 8
+    unit: hours
+    description: 되돌림(회복) 또는 능동 설치(온실막 보호) 트리거 시 부여되는 온실막 보호 지속시간. 게임 콘셉트 문서에서 확정된 상수 — 소비만 함. 회복 경로(TriggerRecovery)와 능동 설치 경로(온실막 보호) 모두 ActivateShield로 이 값만큼 shieldActiveUntil을 SET(누적 아님).
+    source: design/gdd/game-concept.md
+    referenced_by:
+      - design/gdd/potato-stat-system.md
+      - design/gdd/greenhouse-shield-system.md
+
+  - name: RANK_SHIELD
+    category: constant
+    value: 3
+    unit: priority rank (lower = higher priority)
+    description: 광고 SDK 통합 계층의 단일 로딩 슬롯 중재에서 shield(온실막 보호 능동 설치) 광고 타입의 우선순위. RANK_REVIVE=0/GACHA=1/BOOSTER=2보다 큰 최저값 — 예방적·무긴급 액션이 위기 revive나 기성 수익 루프와 슬롯 경쟁 시 절대 이기지 않도록. shield는 온디맨드(사전로드 없음, 소비 후 자동 재사전로드 제외).
+    source: design/gdd/ad-sdk-integration-layer.md
+    referenced_by:
+      - design/gdd/ad-sdk-integration-layer.md
+      - design/gdd/greenhouse-shield-system.md
+
+  - name: REVIVE_PRELOAD_THRESHOLD
+    category: constant
+    value: 40
+    unit: neglect points (0-100 scale)
+    description: neglectMeter(potato-stat-system.md 소유)가 이 값을 넘으면 광고 SDK 통합 계층이 부활 광고 사전로드를 자동 발행. 어느 스탯이 위기를 이끌든 동일 시각(τ=8.0h)에 발동, Wither까지 항상 4.65h 이상 여유 확보.
+    source: design/gdd/ad-sdk-integration-layer.md
+    referenced_by:
+      - design/gdd/ad-sdk-integration-layer.md
+
+  - name: DURATION_MIN
+    category: constant
+    value: 6
+    unit: hours
+    description: 날씨 구간 최소 지속시간(균등분포 하한). DURATION_MAX와 함께 §6 복합 방치 안전 주장의 근거.
+    source: design/gdd/weather-system.md
+    referenced_by:
+      - design/gdd/weather-system.md
+
+  - name: DURATION_MAX
+    category: constant
+    value: 10
+    unit: hours
+    description: 날씨 구간 최대 지속시간(균등분포 상한). 가장 빠른 단독 시듦 시각(폭염, 17.375h)의 절반~80% 이하로 유지해야 "단일 구간만으로는 시들 수 없음" 안전 속성이 성립.
+    source: design/gdd/weather-system.md
+    referenced_by:
+      - design/gdd/weather-system.md
+
+  - name: WEIGHT_SUNNY
+    category: constant
+    value: [0.50, 0.45]
+    unit: relative weight (MVP/post-MVP)
+    description: 맑음 선택 가중치 — 유일하게 전용 위기 포즈가 없는 "쉬어가는 날". 나머지 가중치 합보다 항상 커야 함.
+    source: design/gdd/weather-system.md
+    referenced_by:
+      - design/gdd/weather-system.md
+
+  - name: WEIGHT_RAINFOG
+    category: constant
+    value: [0.25, 0.20]
+    unit: relative weight (MVP/post-MVP)
+    description: 폭우/안개 선택 가중치. WEIGHT_COLDSNAP과 항상 대칭(스탯 편애 방지).
+    source: design/gdd/weather-system.md
+    referenced_by:
+      - design/gdd/weather-system.md
+
+  - name: WEIGHT_COLDSNAP
+    category: constant
+    value: [0.25, 0.20]
+    unit: relative weight (MVP/post-MVP)
+    description: 한파/폭설 선택 가중치. WEIGHT_RAINFOG과 항상 대칭(스탯 편애 방지).
+    source: design/gdd/weather-system.md
+    referenced_by:
+      - design/gdd/weather-system.md
+
+  - name: WEIGHT_HEATWAVE
+    category: constant
+    value: 0.15
+    unit: relative weight (post-MVP only)
+    description: 폭염 선택 가중치 — 넷 중 가장 급격한 압박이므로 가장 희소하게. WEIGHT_SUNNY를 절대 넘지 않아야 함.
+    source: design/gdd/weather-system.md
+    referenced_by:
+      - design/gdd/weather-system.md
+
+  - name: ACTIVE_RATE_HEATWAVE
+    category: constant
+    value: -4.0
+    unit: points per hour
+    description: 폭염(post-MVP) 활성 시 수분 스탯 감쇠율. ACTIVE_RATE 패밀리 확장값, potato-stat Tuning Knobs 안전범위(1.5~4.0) 상한. 시듦 시각 17.375h(넷 중 최속).
+    source: design/gdd/weather-system.md
+    referenced_by:
+      - design/gdd/weather-system.md
+      - design/gdd/expression-animation-system.md
+
+  - name: CROSSFADE_DURATION
+    category: constant
+    value: 3.0
+    unit: seconds
+    description: 날씨 전환 시 색온도 그레이드 크로스페이드 전체 길이. 라이브 전환(앱이 열려 있을 때 실시간으로 경계를 통과)에만 재생 — 오프라인 갭 후 재개 시에는 즉시 스냅.
+    source: design/gdd/weather-system.md
+    referenced_by:
+      - design/gdd/weather-system.md
+      - design/gdd/expression-animation-system.md
+
+  - name: STAGE_DURATION_HOURS
+    category: constant
+    value: 24
+    unit: hours
+    description: 생장 4단계(발아/성장/비대/수확)가 공유하는 단계당 누적 성장시간. 총 생애주기 길이(4×24=96h)는 game-concept.md의 "4일 생애주기" 핵심 가설과 직결 — 변경 시 그 문서 정정 필요.
+    source: design/gdd/lifecycle-progression-system.md
+    referenced_by:
+      - design/gdd/lifecycle-progression-system.md
+
+  - name: GROWTH_BREATH_DURATION
+    category: constant
+    value: [0.4, 0.6]
+    unit: seconds
+    description: Sprout→Growing, Growing→Plump 전환 시 실루엣 모프 연출 길이(라이브 전환에만 재생). 오버슛 없는 ease-out만.
+    source: design/gdd/lifecycle-progression-system.md
+    referenced_by:
+      - design/gdd/lifecycle-progression-system.md
+      - design/gdd/expression-animation-system.md
+
+  - name: HARVEST_ARRIVAL_DURATION
+    category: constant
+    value: [0.8, 1.0]
+    unit: seconds
+    description: Plump→HarvestReady 전환 전용 연출 길이(끝에 짧은 정지 포함) — GROWTH_BREATH_DURATION과 동일 모프 언어, 페이싱만 다름.
+    source: design/gdd/lifecycle-progression-system.md
+    referenced_by:
+      - design/gdd/lifecycle-progression-system.md
+      - design/gdd/expression-animation-system.md
+
+  - name: WITHER_FREE_RECOVERY_THRESHOLD_SEC
+    category: constant
+    value: 1800
+    unit: seconds
+    description: 시듦 중 누적 포그라운드(라이브) 체류 시간이 이 값에 도달하면 무료 회복 경로가 자동으로 TriggerRecovery()를 호출(광고 시청과 별개의 두 번째 회복 경로). 오프라인/백그라운드 시간은 전혀 기여하지 않음. systems-designer(1800s)와 economy-designer(300s, 240~480s 밴드) 권장값이 갈렸으며 사용자가 수익 보호를 우선해 전자를 채택(안전범위 900~3600s). ad-sdk의 재시도 최악 소진 시간(750s)보다 크게 설계.
+    source: design/gdd/wither-crisis-recovery-system.md
+    referenced_by:
+      - design/gdd/wither-crisis-recovery-system.md
+
+  - name: REVIVE_CTA_WAIT_TIMEOUT_SEC
+    category: constant
+    value: 35
+    unit: seconds
+    description: 부활 광고 시스템의 되돌리기 CTA 탭 후 광고 준비 대기(WaitingForAd) 상한. 초과 시 대기 종료·다정한 안내·CTA 유지(무료 30분 경로가 대안). 파생 상수 — 구조적 하한 32 = T_COOLDOWN_REVIVE(2) + 2*T_LOAD_TIMEOUT_SEC(15, ad-sdk 소유). ad-sdk의 그 두 값 변경 시 재도출 필수. 안전 범위 32~45s. 일반 케이스(사전로드로 이미 Ready)에선 대기 미진입이라 미평가.
+    source: design/gdd/revive-ad-system.md
+    referenced_by:
+      - design/gdd/revive-ad-system.md
+
+  - name: N_OWNED_MVP
+    category: constant
+    value: [1, 2]
+    unit: count (코스튬 종수)
+    description: MVP에서 계정이 처음부터 전부 보유하는 코스튬 수(잠금해제 로직 없음). 정확한 값(1 또는 2)과 실제 실루엣은 아트 에셋 생산 일정 확정 시 결정 — Open Questions에 등재된 미확정 항목.
+    source: design/gdd/costume-system.md
+    referenced_by:
+      - design/gdd/costume-system.md
+
+  - name: POSE_BLEND_DURATION
+    category: constant
+    value: 0.2
+    unit: seconds
+    description: 라이브 목격 중 원자적 트리거(터치 완료·날씨 enum 계단 전환)로 발생하는 포즈 카테고리(Layer 2) + 윤곽선 연속 블렌드(Layer 1) 크로스페이드 공용 지속시간. CROSSFADE_DURATION(3.0s)/GROWTH_BREATH_DURATION(0.4-0.6s)/HARVEST_ARRIVAL_DURATION(0.8-1.0s)보다 짧게 잡아 "손끝 직결 피드백은 즉각적이어야 한다"는 위계를 값으로 표현. AmbientDrift(연속 드리프트)·BespokeEvent(Wither/Recovery/StageAdvanced 등 자기 소유 전환)에는 적용 안 됨.
+    source: design/gdd/expression-animation-system.md
+    referenced_by:
+      - design/gdd/expression-animation-system.md
+
+  - name: T_TIMBRE_ATTACK
+    category: constant
+    value: 100
+    unit: ms(미검증)
+    description: ASMR 적응형 오디오 F1(TimbreFollow)의 상승 시상수 — target>τ일 때(음색이 진행 방향으로 상승) 팔로우 속도. 안전범위 50~150ms.
+    source: design/gdd/asmr-adaptive-audio.md
+    referenced_by:
+      - design/gdd/asmr-adaptive-audio.md
+
+  - name: T_TIMBRE_RELEASE
+    category: constant
+    value: 300
+    unit: ms(미검증)
+    description: F1(TimbreFollow)의 하강 시상수 — Decaying 중 팔로우 속도. 터치 케어 Formula 4의 "서서히 풀림" 정서와 결이 맞도록 attack보다 김.
+    source: design/gdd/asmr-adaptive-audio.md
+    referenced_by:
+      - design/gdd/asmr-adaptive-audio.md
+
+  - name: T_GAIN_RELEASE
+    category: constant
+    value: 20
+    unit: ms
+    description: F1b(GestureGain)의 안티클릭 페이드 — progressUnderlying이 0에 도달하는 모든 경우(완성/감쇠만료/하드중단)에 공통 적용되는 디지털 팝 방지용 극히 짧은 페이드. 안전범위 15~30ms.
+    source: design/gdd/asmr-adaptive-audio.md
+    referenced_by:
+      - design/gdd/asmr-adaptive-audio.md
+
+  - name: T_DUCK_ATTACK
+    category: constant
+    value: 200
+    unit: ms
+    description: F2(DuckMultiplier)의 덕킹 어택 시간. 하한 120~150ms 하드 제약(너무 빠르면 펌핑 아티팩트로 들려 역설적으로 "다이내믹 이벤트"가 튐). 안전범위 150~300ms.
+    source: design/gdd/asmr-adaptive-audio.md
+    referenced_by:
+      - design/gdd/asmr-adaptive-audio.md
+
+  - name: T_DUCK_RELEASE
+    category: constant
+    value: [1.0, 1.5]
+    unit: seconds(성장/위기·회복)
+    description: F2(DuckMultiplier)의 덕킹 릴리스 시간 — 성장 이벤트 1.0s, 위기·회복 이벤트 1.5s. 하한 600~800ms 하드 제약(너무 빠르면 "튀어 돌아오는" 것처럼 들려 믹싱 기법이 노출됨). 안전범위 0.8~2.0s.
+    source: design/gdd/asmr-adaptive-audio.md
+    referenced_by:
+      - design/gdd/asmr-adaptive-audio.md
+
+  - name: D_AMBIENT_GROWTH
+    category: constant
+    value: 6
+    unit: dB
+    description: F2 덕킹 깊이 — 성장 이벤트(OnStageAdvanced)가 앰비언트 레이어에 미치는 감쇠량. 상한 10dB 하드 제약, D_GESTURE_GROWTH보다 최소 2dB 깊게 유지.
+    source: design/gdd/asmr-adaptive-audio.md
+    referenced_by:
+      - design/gdd/asmr-adaptive-audio.md
+
+  - name: D_GESTURE_GROWTH
+    category: constant
+    value: 3
+    unit: dB
+    description: F2 덕킹 깊이 — 성장 이벤트가 제스처 레이어에 미치는 감쇠량(앰비언트보다 얕게, Core Rule 2 위계 보존).
+    source: design/gdd/asmr-adaptive-audio.md
+    referenced_by:
+      - design/gdd/asmr-adaptive-audio.md
+
+  - name: D_AMBIENT_CRISIS
+    category: constant
+    value: 9
+    unit: dB
+    description: F2 덕킹 깊이 — 위기/회복 이벤트(OnWitherEntered/OnRecovered)가 앰비언트 레이어에 미치는 감쇠량. D_AMBIENT_GROWTH보다 최소 2dB 깊게(Core Rule 6 정서적 무게 우선순위 반영), 상한 10dB 하드 제약.
+    source: design/gdd/asmr-adaptive-audio.md
+    referenced_by:
+      - design/gdd/asmr-adaptive-audio.md
+
+  - name: D_GESTURE_CRISIS
+    category: constant
+    value: 5
+    unit: dB
+    description: F2 덕킹 깊이 — 위기/회복 이벤트가 제스처 레이어에 미치는 감쇠량.
+    source: design/gdd/asmr-adaptive-audio.md
+    referenced_by:
+      - design/gdd/asmr-adaptive-audio.md
+
+  - name: RANK_AUDIO_EVENT_CRISIS
+    category: constant
+    value: 0
+    unit: priority rank (lower = higher priority)
+    description: F3(WinnerEvent)의 위기/회복 이벤트(OnWitherEntered/OnRecovered) 우선순위 — 최우선. ad-sdk-integration-layer.md의 RANK_REVIVE/GACHA/BOOSTER/SHIELD와 동일한 "낮을수록 우선" 관례 재사용.
+    source: design/gdd/asmr-adaptive-audio.md
+    referenced_by:
+      - design/gdd/asmr-adaptive-audio.md
+
+  - name: RANK_AUDIO_EVENT_GROWTH
+    category: constant
+    value: 1
+    unit: priority rank (lower = higher priority)
+    description: F3(WinnerEvent)의 성장 이벤트(OnStageAdvanced) 우선순위 — CRISIS보다 낮음(정서적 무게가 작으므로).
+    source: design/gdd/asmr-adaptive-audio.md
+    referenced_by:
+      - design/gdd/asmr-adaptive-audio.md
+
+  - name: SIMULTANEOUS_WINDOW_MS
+    category: constant
+    value: 150
+    unit: ms(미검증)
+    description: F3(WinnerEvent)이 "동시 발생"으로 간주하는 충돌 윈도우 — 첫 이벤트 도착 시각에 고정되는 수집 윈도우(롤링 아님), [0, SIMULTANEOUS_WINDOW_MS) 구간(시작 포함·끝 미포함). 안전범위 100~250ms.
+    source: design/gdd/asmr-adaptive-audio.md
+    referenced_by:
+      - design/gdd/asmr-adaptive-audio.md
+
+  - name: AMBIENT_BASE_GAIN
+    category: constant
+    value: -6
+    unit: dB(상대값, 미검증)
+    description: 덕킹(F2)과 독립적인 앰비언트 레이어의 평상시 기본 게인 — GESTURE_BASE_GAIN보다 항상 낮게 유지해 이벤트가 없는 대부분의 시간에도 Core Rule 2("제스처가 앰비언트보다 우선")를 보존(qa-lead 발견 갭 해소).
+    source: design/gdd/asmr-adaptive-audio.md
+    referenced_by:
+      - design/gdd/asmr-adaptive-audio.md
+
+  - name: GESTURE_BASE_GAIN
+    category: constant
+    value: 0
+    unit: dB(상대값, 기준점)
+    description: 제스처 레이어의 평상시 기본 게인(기준 0dB) — AMBIENT_BASE_GAIN이 이 값보다 항상 낮아야 함.
+    source: design/gdd/asmr-adaptive-audio.md
+    referenced_by:
+      - design/gdd/asmr-adaptive-audio.md
+
+formulas:
+  - name: NEGLECT_ACCUMULATION
+    category: formula
+    variables: [overshootMoisture, overshootHumidity, overshootTemperature, isShielded, NEGLECT_K]
+    output_range: [0, 100]
+    description: "dN/dt = (1 - isShielded) * NEGLECT_K * Σ overshoot(stat)"
+    source: design/gdd/potato-stat-system.md
+    referenced_by:
+      - design/gdd/potato-stat-system.md
+
+  - name: ActivateShield
+    category: formula
+    variables: [duration, t_call]
+    output_range: "shieldActiveUntil' = t_call + duration (항상 SET, 누적 아님)"
+    description: "ActivateShield(duration): shieldActiveUntil' = t_call + duration — 온실막 부여 mutator. 두 호출자 공유: (a) 시듦/위기&회복의 TriggerRecovery()가 ResetToIdeal()과 번들, (b) 온실막 보호의 능동 설치가 단독 호출(스탯 리셋 없음). 재호출 시 기존 잔여 무시하고 그 시각 기준 재SET(스택 불가). 두 호출자 모두 duration=SHIELD_DURATION(8h) 전달. potato-stat §7로 독립 공식 정식화(2026-07-18), 그 전엔 산문에만 존재."
+    source: design/gdd/potato-stat-system.md
+    referenced_by:
+      - design/gdd/potato-stat-system.md
+      - design/gdd/wither-crisis-recovery-system.md
+      - design/gdd/greenhouse-shield-system.md
+
+  - name: GetWeatherAt
+    category: formula
+    variables: [seed, scheduleStartUtc, T]
+    output_range: "(weather enum, segStart, segEnd)"
+    description: 임의 시각 T의 날씨를 시드로부터 결정론적으로 재구성하는 함수. 오프라인 진행 계산·시듦/위기&회복·터치 케어 인터랙션·표정/애니메이션·ASMR 적응형 오디오가 이 인터페이스에 의존.
+    source: design/gdd/weather-system.md
+    referenced_by:
+      - design/gdd/weather-system.md
+
+  - name: stageIndex
+    category: formula
+    variables: [growthHoursAccumulated]
+    output_range: "{0,1,2,3} (Sprout/Growing/Plump/HarvestReady)"
+    description: "stageIndex(G) = clamp(floor(G/24), 0, 3) — 누적 성장시간으로부터 생장 단계를 조회하는 총함수. 표정/애니메이션·코스튬 시스템·이름짓기&수확카드가 이 인터페이스에 의존."
+    source: design/gdd/lifecycle-progression-system.md
+    referenced_by:
+      - design/gdd/lifecycle-progression-system.md
+
+  - name: Tick
+    category: formula
+    variables: [growthHoursAccumulated, isWithered, elapsedHours]
+    output_range: "growthHoursAccumulated' ∈ [G, G+Δt]"
+    description: "G' = G + (1-W)·Δt — 라이브 틱과 오프라인 배치(세그먼트별 반복 호출) 양쪽에 쓰이는 성장시간 갱신 함수. 오프라인 진행 계산기가 세그먼트를 순서대로 공급하며 이 함수를 반복 호출해야 함."
+    source: design/gdd/lifecycle-progression-system.md
+    referenced_by:
+      - design/gdd/lifecycle-progression-system.md
+
+  - name: t_cross
+    category: formula
+    variables: [X, V0, rate, t0]
+    output_range: "(t0, t_window_end] 내 시각 1개, 또는 없음"
+    description: "t_cross = t0 + (X-V0)/rate — 상수-rate 구간 내에서 스탯이 특정 임계값(안전 구간 경계 또는 클램프 0/100)에 도달하는 시각. sign(X-V0)==sign(rate)일 때만 유효. 오프라인 진행 계산의 세그먼트 분할 1단계."
+    source: design/gdd/offline-progress-calculation.md
+    referenced_by:
+      - design/gdd/offline-progress-calculation.md
+      - design/gdd/lifecycle-progression-system.md
+
+  - name: ΔN_piece
+    category: formula
+    variables: [O_start, m, Δt, isShielded]
+    output_range: "≥ 0"
+    description: "ΔN_piece = NEGLECT_K·(1-isShielded)·[O_start·Δt + (m/2)·Δt²] — potato-stat §4 사다리꼴 공식(ΔN=k·[(o_start+o_end)/2]·Δt)의 대수적 동치, τ_wither 풀이에 필요한 전개형."
+    source: design/gdd/offline-progress-calculation.md
+    referenced_by:
+      - design/gdd/offline-progress-calculation.md
+      - design/gdd/lifecycle-progression-system.md
+
+  - name: τ_wither
+    category: formula
+    variables: [N_start, O_start, m]
+    output_range: "τ_local ∈ [0, Δt_piece)"
+    description: "τ_local = (-b+√(b²-4ac))/(2a), a=NEGLECT_K·m/2, b=NEGLECT_K·O_start, c=N_start-100(m=0이면 선형 퇴화) — 방치 지표가 100(Wither)에 도달하는 정확한 시각을 닫힌 형식으로 구함. lifecycle-progression-system.md의 舊 Open Question(세그먼트 분할 알고리즘)을 해소."
+    source: design/gdd/offline-progress-calculation.md
+    referenced_by:
+      - design/gdd/offline-progress-calculation.md
+      - design/gdd/lifecycle-progression-system.md
+
+  - name: SegmentGap
+    category: formula
+    variables: [gapStart, gapEnd]
+    output_range: "정렬된 단조 세그먼트 리스트, 길이 ≤ K+9 (K=날씨 구간 수)"
+    description: "SegmentGap(gapStart, gapEnd) → [(Δtⱼ, weatherⱼ, isShieldedⱼ, Wⱼ)] — 날씨 전환·온실막 만료·τ_wither 세 종류의 분할점을 병합해 potato-stat 배치 공식과 lifecycle Tick을 락스텝으로 순차 적용하기 위한 세그먼트 리스트를 만드는 오프라인 진행 계산의 핵심 절차."
+    source: design/gdd/offline-progress-calculation.md
+    referenced_by:
+      - design/gdd/offline-progress-calculation.md
+      - design/gdd/lifecycle-progression-system.md
+
+  - name: IsTimestampValid
+    category: formula
+    variables: [t_loaded, T_EPOCH_FLOOR, t_deviceNow, ε_FUTURE]
+    output_range: "bool {0,1}"
+    description: "IsTimestampValid(t_loaded) = (t_loaded ≥ T_EPOCH_FLOOR) ∧ (t_loaded ≤ t_deviceNow + ε_FUTURE) — 로드된 UTC 타임스탬프가 구조적으로 말이 되는지 검사(T_EPOCH_FLOOR=saveFileCreatedUtc, ε_FUTURE=300초). false면 t_deviceNow로 대체. /consistency-check(2026-07-18)에서 4개 GDD가 이름으로 참조 중임에도 미등록 상태였던 것을 발견해 추가."
+    source: design/gdd/save-persistence-system.md
+    referenced_by:
+      - design/gdd/save-persistence-system.md
+      - design/gdd/weather-system.md
+      - design/gdd/potato-stat-system.md
+      - design/gdd/offline-progress-calculation.md
+      - design/gdd/wither-crisis-recovery-system.md
+
+  - name: BlendMode
+    category: formula
+    variables: [isLive, source]
+    output_range: "{Snap, PoseBlend, PassThrough, Owned}"
+    description: "BlendMode(isLive, source) — isLive=false면 항상 Snap(오프라인 재개, 애니메이션 없음). 라이브 중엔 source(TouchDelta/WeatherEnumStep/AmbientDrift/BespokeEvent)에 따라 PoseBlend(원자적 트리거, POSE_BLEND_DURATION 크로스페이드 적용)/PassThrough(연속 드리프트, 추가 블렌드 불필요)/Owned(Wither/Recovery/StageAdvanced/Harvest 등 4개 자기 소유 전환, 중복 지연 방지)로 분기. weather/lifecycle의 기존 '라이브 전환에만 재생, 오프라인 갭 후엔 즉시 스냅' 게이트를 상속."
+    source: design/gdd/expression-animation-system.md
+    referenced_by:
+      - design/gdd/expression-animation-system.md
+
+  - name: v_rendered
+    category: formula
+    variables: [t, t_retarget, v_start, v_target]
+    output_range: "[0,1] (Layer 1), 유효 포즈 가중치 (Layer 2)"
+    description: "v_rendered(t) = v_start + (v_target-v_start)·ease(clamp((t-t_retarget)/POSE_BLEND_DURATION,0,1)), ease(x)=1-(1-x)² — BlendMode=PoseBlend일 때 Layer 2(포즈 카테고리)와 Layer 1(스탯별 윤곽선 블렌드 b) 4채널에 동일한 시계로 적용되는 공용 크로스페이드. 재트리거(중첩 전환) 시 인터럽트 후 즉시 재타겟팅(큐잉 없음), BespokeEvent 발생 시엔 재타겟팅이 아니라 즉시 취소."
+    source: design/gdd/expression-animation-system.md
+    referenced_by:
+      - design/gdd/expression-animation-system.md
+
+  - name: witherForegroundSeconds
+    category: formula
+    variables: [F, Δt_live, isWithered, isForeground]
+    output_range: "≥0, 단일 위기 에피소드 내 단조 비감소(TriggerRecovery() 시에만 0 리셋)"
+    description: "F' = F + Δt_live · 1[isWithered ∧ isForeground] — 시듦 중 무료 회복 경로가 소유하는 누적 포그라운드 체류 카운터. 오프라인/백그라운드 시간은 절대 기여하지 않아 offline-progress-calculation.md·lifecycle-progression-system.md·potato-stat-system.md의 '오프라인 갭 중 Wither는 최대 1회만 진입, 갭 끝까지 유지' 가정을 전혀 건드리지 않음."
+    source: design/gdd/wither-crisis-recovery-system.md
+    referenced_by:
+      - design/gdd/wither-crisis-recovery-system.md
+
+  - name: TriggerFreeRecovery
+    category: formula
+    variables: [F, WITHER_FREE_RECOVERY_THRESHOLD_SEC]
+    output_range: "bool {0,1}"
+    description: "TriggerFreeRecovery(F) = (F ≥ WITHER_FREE_RECOVERY_THRESHOLD_SEC) — true면 즉시 TriggerRecovery() 호출 시도(광고 경로와 원자적 경쟁, 먼저 도달한 경로가 승리하고 나머지는 isWithered=false를 감지해 무시)."
+    source: design/gdd/wither-crisis-recovery-system.md
+    referenced_by:
+      - design/gdd/wither-crisis-recovery-system.md
+
+  - name: CanEquip
+    category: formula
+    variables: [stage]
+    output_range: "bool {0,1}"
+    description: "CanEquip(stage) = 1[stage = HarvestReady] — 코스튬 착장 시도가 시점 게이트를 통과하는지 판정하는 불리언 게이트. stage는 Equip() 호출 시점에 생애주기 진행에서 실시간 재조회, stageIndex(G)==3과 동치. IsTimestampValid/TriggerFreeRecovery와 동일한 불리언 게이트 계보."
+    source: design/gdd/costume-system.md
+    referenced_by:
+      - design/gdd/costume-system.md
+
+  - name: Equip
+    category: formula
+    variables: [costumeId, ownedCostumeIds, stage, equippedCostumeId]
+    output_range: "equippedCostumeId' ∈ ownedCostumeIds ∪ {null}"
+    description: "equippedCostumeId' = costumeId, if CanEquip(stage) ∧ (costumeId ∈ ownedCostumeIds); else 변화 없음(no-op) — 코스튬 착장 SET mutator. 두 게이트(stage·소유권) 모두 호출자를 신뢰하지 않고 재검증. ActivateShield와 동일한 SET(누적 아님) mutator 계보. 이름짓기 & 수확 카드 시스템이 호출자."
+    source: design/gdd/costume-system.md
+    referenced_by:
+      - design/gdd/costume-system.md
+
+  - name: TimbreFollow
+    category: formula
+    variables: [progress, paramFloor, paramCeil, τ, T_TIMBRE_ATTACK, T_TIMBRE_RELEASE, Δt]
+    output_range: "τ' ∈ [paramFloor, paramCeil]"
+    description: "target(progress)=paramFloor·(paramCeil/paramFloor)^progress(로그선형), τ'=τ+(target-τ)·(1-e^(-Δt/T_TIMBRE)) — 창문/난로 연속 텍스처(LPF 컷오프/새추레이션)를 progress로 구동하는 EMA 팔로우 필터. 물뿌리개(이산)에는 미적용. 하드 중단 시 τ는 즉시 paramFloor로 리셋."
+    source: design/gdd/asmr-adaptive-audio.md
+    referenced_by:
+      - design/gdd/asmr-adaptive-audio.md
+
+  - name: GestureGain
+    category: formula
+    variables: [progressUnderlying, T_GAIN_RELEASE]
+    output_range: "[0,1], progressUnderlying과 거의 동일(수십ms 이내 차이)"
+    description: "gain(t)=progressUnderlying(t), progressUnderlying이 정확히 0에 도달하는 순간에만 안티클릭용 T_GAIN_RELEASE 짧은 페이드 적용 — 완성 후 유지 종료·감쇠 만료·하드 중단 3가지 서로 다른 정지 사유를 동일한 최종 상태(0)로 수렴시켜 통일 처리(중복 감쇠 로직 없음)."
+    source: design/gdd/asmr-adaptive-audio.md
+    referenced_by:
+      - design/gdd/asmr-adaptive-audio.md
+
+  - name: DuckMultiplier
+    category: formula
+    variables: [t, T_DUCK_ATTACK, T_HOLD, T_DUCK_RELEASE, D]
+    output_range: "[floor, 1.0], floor=10^(-D/20)>0 항상"
+    description: "이벤트 발생 후 어택→홀드(원샷 클립 길이 기반 파생)→릴리스 3단계로 하위 레이어(앰비언트/제스처)를 덕킹하는 봉투 함수. 깊이(D)는 이벤트티어(성장/위기·회복)×대상레이어(앰비언트/제스처) 2차원으로 차등화(D_AMBIENT_GROWTH/CRISIS, D_GESTURE_GROWTH/CRISIS). 하드 중단 시 진행 중이던 모든 덕킹은 즉시 1.0으로 강제 복귀."
+    source: design/gdd/asmr-adaptive-audio.md
+    referenced_by:
+      - design/gdd/asmr-adaptive-audio.md
+
+  - name: WinnerEvent
+    category: formula
+    variables: [eventsFiredThisWindow, RANK_AUDIO_EVENT_CRISIS, RANK_AUDIO_EVENT_GROWTH]
+    output_range: "입력 집합의 원소 중 정확히 하나"
+    description: "WinnerEvent=argmin_e RANK_AUDIO_EVENT(e) — SIMULTANEOUS_WINDOW_MS(첫 이벤트 도착 시각에 고정되는 수집 윈도우, 롤링 아님) 내 동시 발생 이벤트 중 가장 낮은 랭크만 재생, 나머지는 스킵(큐잉 없음). ad-sdk-integration-layer.md의 RANK_* 계열과 동일한 '낮을수록 우선' 관례. 이벤트 레이어가 이미 Playing이면 윈도우 밖 신규 이벤트는 랭크 무관 비선점 드롭."
+    source: design/gdd/asmr-adaptive-audio.md
+    referenced_by:
+      - design/gdd/asmr-adaptive-audio.md
+
+  - name: CTAWaitTimedOut
+    category: formula
+    variables: [t, t_waitStarted, waiting, REVIVE_CTA_WAIT_TIMEOUT_SEC]
+    output_range: "bool {0,1}"
+    description: "CTAWaitTimedOut(t) = waiting ∧ (t − t_waitStarted ≥ REVIVE_CTA_WAIT_TIMEOUT_SEC) — 부활 광고 시스템이 되돌리기 CTA 탭 후 광고가 미준비라 대기하는 동안의 UI 인내 상한 게이트. true면 대기 종료·다정한 안내·CTA 유지. 라이브 실측 경과시간만 사용(영속 타임스탬프 없음, 시계 조작 방어). 일반 케이스(탭 시 이미 Ready)에선 waiting 미진입이라 미평가."
+    source: design/gdd/revive-ad-system.md
+    referenced_by:
+      - design/gdd/revive-ad-system.md
